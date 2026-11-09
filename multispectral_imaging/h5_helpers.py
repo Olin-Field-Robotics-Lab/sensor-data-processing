@@ -2,6 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap, Normalize
 
+def flatten_labels(labels):
+    x = np.argmax(labels, axis=-1)
+    binary_mask = np.sum(labels, axis=-1)
+    x[binary_mask == 0] = 6
+    return x
 
 def plot_bands(some_image, band_names):
     fig, axes = plt.subplots(4, 3, figsize=(15, 12))
@@ -74,6 +79,7 @@ band_names = [
     "B11 (SWIR 1610nm)",
     "B12 (SWIR 2190nm)",
 ]
+
 june_timestamp = "06_june_2019"
 image_idx = 5555
 
