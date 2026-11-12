@@ -15,6 +15,8 @@ def train_PCA(img_num, pc_num=-1):
 
         # find principal components of image data
         pcs, vals = calculate_pc(image_mat, pc_num)
+        visualize_eigenvalues(vals)
+        visualize_PCs(pcs, 2)
 
         # project data onto principal components
         means = image_mat.mean(axis=0)
@@ -63,3 +65,23 @@ def calculate_pc(mat, num=-1):
     
     # return sorted eigenvectors and eigenvalues as tuple
     return sorted_eigenvectors, sorted_eigenvalues
+
+def visualize_eigenvalues(eigenvalues):
+    plt.figure()
+    plt.plot(list(range(1,eigenvalues.shape[0]+1)), eigenvalues, '.-')
+    plt.title('Eigenvalues')
+    plt.ylabel('Eigenvalue')
+    plt.xlabel('Principal Component #')
+    plt.savefig('graphics/eigenvalues.png')
+
+def visualize_PCs(pcs, num=1):
+    plt.figure()
+    for i in range(num):
+        plt.subplot(1, num, i+1)
+        plt.plot(list(range(1,pcs.shape[0]+1)), pcs[:,i], '.-')
+        plt.xlim(0.5, 10.5)
+        plt.ylim(-0.5, 1)
+        plt.title(f"Principal Component {i+1}")
+        plt.xlabel("Weight")
+        plt.ylabel('Wavelength')
+    plt.savefig(f'graphics/principal_components.png')
