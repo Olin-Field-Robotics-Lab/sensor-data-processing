@@ -1,7 +1,7 @@
 import h5py
 from math import sqrt
 import numpy as np
-from numpy.linalg import matmul, eig, lstsq
+from numpy.linalg import matmul, eig, lstsq, norm
 from matplotlib import pyplot as plt
 from h5_helpers import *
 
@@ -15,8 +15,8 @@ def train_PCA(img_num, pc_num=-1):
 
         # find principal components of image data
         pcs, vals = calculate_pc(image_mat, pc_num)
-        visualize_eigenvalues(vals)
-        visualize_PCs(pcs, 2)
+        #visualize_eigenvalues(vals)
+        #visualize_PCs(pcs, 2)
 
         # project data onto principal components
         means = image_mat.mean(axis=0)
@@ -29,15 +29,57 @@ def train_PCA(img_num, pc_num=-1):
 
         # use projected data and labels to approximate weights for the data
         weights = lstsq(projected, labels_mat)[0]
-        return weights, means
+        return pcs, weights, means
+
+
+def test_PCA(img_num, pcs, weights, means):
+    data_path = "data/dataset.h5"
+
+    with h5py.File(data_path, "r") as data:
+        # reformat image to matrix of size pixels*wavelengths
+        image = data["train"]["sentinel2"]["06_june_2019"][img_num]
+        image_mat = reformat_image(image)
+
+        # train-center data and project onto PCs
+        image_mat -= means
+        projected = matmul(image_mat,pcs)
+
+        # get label estimations
+        return matmul(projected, weights)
+
+
+def visualize_predictions(img_num, pcs, weights, means):
+    data_path = "data/dataset.h5"
+
+    with h5py.File(data_path, "r") as data:
+        # get actual and predicted labels
+        labels = data["train"]["labels"]["field"][img_num]
+        labels_img = flatten_labels(labels)
+        predictions = test_PCA(img_num, pcs, weights, means).reshape(labels_img.shape)
+
+        # visualize
+        plt.figure()
+        plt.subplot(1,2,1)
+        plt.imshow(labels_img)
+        plt.title('Actual')
+        plt.subplot(1,2,2)
+        plt.imshow(predictions)
+        plt.title('Predicted')
+        plt.savefig('graphics/pca_test.png')
+
+
+def evaluate_test(predicted, actual):
+    return norm(predicted - actual)
 
 
 def reformat_image(image):
     return image.reshape((image.shape[0], image.shape[1] * image.shape[2])).transpose()
 
+
 def reformat_labels(labels):
     labels_flat = flatten_labels(labels)
     return labels_flat.reshape((labels_flat.shape[0]*labels_flat.shape[1],1))
+
 
 def calculate_pc(mat, num=-1):
     # check that num value is possible
@@ -59,12 +101,13 @@ def calculate_pc(mat, num=-1):
     # order by decreasing eigenvalue
     indices = sorted(list(range(eigenvalues.shape[0])), key=lambda i: eigenvalues[i])[num-1::-1]
     sorted_eigenvalues = np.array([eigenvalues[idx] for idx in indices])
-    sorted_eigenvectors = np.zeros((num,eigenvectors.shape[1]))
+    sorted_eigenvectors = np.zeros((eigenvectors.shape[0],num))
     for i in range(len(indices)):
         sorted_eigenvectors[:,i] = eigenvectors[:,indices[i]]
     
     # return sorted eigenvectors and eigenvalues as tuple
     return sorted_eigenvectors, sorted_eigenvalues
+
 
 def visualize_eigenvalues(eigenvalues):
     plt.figure()
@@ -73,6 +116,7 @@ def visualize_eigenvalues(eigenvalues):
     plt.ylabel('Eigenvalue')
     plt.xlabel('Principal Component #')
     plt.savefig('graphics/eigenvalues.png')
+
 
 def visualize_PCs(pcs, num=1):
     plt.figure()
